@@ -3,6 +3,8 @@ import re
 import time
 
 from deltas import segment_matcher
+from deltas import Operation, Insert, Delete, Equal
+from deltas import apply_get_a, apply_get_b
 
 from ....datasources import Datasource
 from ....datasources.meta import filters
@@ -16,14 +18,29 @@ class Diff:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.operations = Datasource(
-            self._name + ".operations", _process_operations,
-            depends_on=[
-                self.revision.parent.paragraphs_sentences_and_whitespace,
-                self.revision.paragraphs_sentences_and_whitespace,
-                self.revision.parent.tokens,
-                self.revision.tokens]
-        )
+        if not hasattr(self, "operations"):
+
+            self.operations = Datasource(
+                self._name + ".operations", _process_operations,
+                depends_on=[
+                    self.revision.parent.paragraphs_sentences_and_whitespace,
+                    self.revision.paragraphs_sentences_and_whitespace,
+                    self.revision.parent.tokens,
+                    self.revision.tokens
+                ]
+            )
+
+        else:
+
+            self.operations = Datasource(
+                self._name + ".operations", _process_list,
+                depends_on=[
+                    self.revision.parent.tokens,
+                    self.revision.tokens,
+                    self.revision.operations
+                ]
+            )
+
         """
         Returns a tuple that describes the difference between the parent
         revision text and the current revision's text.
@@ -281,6 +298,11 @@ def _process_operations(a_segments, b_segments, a, b):
     operations = list(segment_matcher.diff_segments(a_segments, b_segments))
     logger.debug("diff() of {0} and {1} tokens took {2} seconds."
                  .format(len(a), len(b), time.time() - start))
+
+    return operations, a, b
+
+def _process_list(a, b, operations):
+    operations = [Operation(name = op["name"], a1 = op["a1"], a2 = op["a2"], b1 = op["b1"], b2 = op["b2"]) for op in operations_from_diff]
 
     return operations, a, b
 

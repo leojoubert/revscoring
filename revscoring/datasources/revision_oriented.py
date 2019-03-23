@@ -33,6 +33,7 @@ Supporting classes
 
 """
 import mwtypes
+from deltas import apply_get_a, apply_get_b
 
 from ..dependencies import DependentSet
 from ..dependencies.util import or_none
@@ -45,6 +46,7 @@ class Revision(DependentSet):
     """
 
     def __init__(self, name,
+                 include_operations=True,
                  include_parent=True,
                  include_user=True,
                  include_user_info=True,
@@ -52,7 +54,7 @@ class Revision(DependentSet):
                  include_page=True,
                  include_page_creation=False,
                  include_page_suggested=False,
-                 include_content=False):
+                 include_content=True):
         super().__init__(name)
 
         self.id = Datasource(name + ".id")
@@ -72,9 +74,26 @@ class Revision(DependentSet):
         self.content_model = Datasource(name + ".content_model")
         "`str` : Describes the format of revision content"
 
-        if include_content:
+        if include_content and not include_operations:
             self.text = Datasource(name + ".text")
             "`str` : The decoded (Unicode) text of the revision content"
+
+        if include_operations:
+            include_content = True
+            self.operations = Datasource(name + ".operations")
+            "`dict` : Operations from diff treatment"
+            self.text = Datasource(
+                name + ".text", or_none(apply_get_b),
+                depends_on=[self.operations])
+
+        if include_content and include_parent:
+            self.diff = Diff(
+                name + ".diff"
+            )
+            """
+            :class:`~revscoring.datasources.revision_oriented.Diff` : The
+            difference between this revision and the parent revision.
+            """
 
         if include_parent:
             self.parent = Revision(
@@ -83,12 +102,18 @@ class Revision(DependentSet):
                 include_user_info=False,
                 include_page=False,
                 include_content=include_content,
-                include_page_suggested=False
+                include_page_suggested=False,
+                include_operations=include_operations
             )
             """
             :class:`~revscoring.datasources.revision_oriented.Revision` : The
             parent (aka "previous") revision of the page.
             """
+
+            if include_content and include_operations:
+                self.parent.text = Datasource(
+                    name + ".parent.text", or_none(apply_get_a),
+                    depends_on=[self.operations])
 
         if include_page:
             self.page = Page(
@@ -110,15 +135,6 @@ class Revision(DependentSet):
             """
             :class:`~revscoring.datasources.revision_oriented.User` : The
             user who saved the revision.
-            """
-
-        if include_content and include_parent:
-            self.diff = Diff(
-                name + ".diff"
-            )
-            """
-            :class:`~revscoring.datasources.revision_oriented.Diff` : The
-            difference between this revision and the parent revision.
             """
 
 

@@ -1,4 +1,3 @@
-
 class or_none:
     """
     Constructs a callable that will return None if the input is None, but will
