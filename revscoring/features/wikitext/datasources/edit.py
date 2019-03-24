@@ -302,6 +302,7 @@ def _process_operations(a_segments, b_segments, a, b):
     return operations, a, b
 
 def _process_list(a, b, operations):
+    # TODO: change to generator : this list may be quite heavy to store in it memory
     operations = [Operation(name = op["name"], a1 = op["a1"], a2 = op["a2"], b1 = op["b1"], b2 = op["b2"]) for op in operations_from_diff]
 
     return operations, a, b
